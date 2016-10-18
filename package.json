@@ -23,7 +23,7 @@
     "url": "https://github.com/Khan/KAS/issues"
   },
   "dependencies": {
-    "underscore": "~1.5.1"
+    "lodash": "^4.16.4"
   },
   "devDependencies": {
     "jison": "^0.4.15",

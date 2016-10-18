@@ -219,15 +219,15 @@ _.extend(Expr.prototype, {
 
     // return the variables (function and non) within the expression
     getVars: function(excludeFunc) {
-        return _.uniq(_.flatten(_.invoke(this.exprArgs(), "getVars", excludeFunc))).sort();
+        return _.uniq(_.flatten(_.invokeMap(this.exprArgs(), "getVars", excludeFunc))).sort();
     },
 
     getConsts: function() {
-        return _.uniq(_.flatten(_.invoke(this.exprArgs(), "getConsts"))).sort();
+        return _.uniq(_.flatten(_.invokeMap(this.exprArgs(), "getConsts"))).sort();
     },
 
     getUnits: function() {
-        return _.flatten(_.invoke(this.exprArgs(), "getUnits"));
+        return _.flatten(_.invokeMap(this.exprArgs(), "getUnits"));
     },
 
     // check whether this expression node is of a particular type
@@ -240,7 +240,7 @@ _.extend(Expr.prototype, {
         if (this instanceof func) {
             return true;
         }
-        return _.any(this.exprArgs(), function(arg) { return arg.has(func); });
+        return _.some(this.exprArgs(), function(arg) { return arg.has(func); });
     },
 
     // raise this expression to a given exponent
@@ -272,7 +272,7 @@ _.extend(Expr.prototype, {
         };
 
         var lower = function(array) {
-            return _.uniq(_.invoke(array, "toLowerCase")).sort();
+            return _.uniq(_.invokeMap(array, "toLowerCase")).sort();
         };
 
         var equal = same(vars1, vars2);
@@ -476,7 +476,7 @@ _.extend(Seq.prototype, {
     args: function() { return this.terms; },
 
     normalize: function() {
-        var terms = _.sortBy(_.invoke(this.terms, "normalize"), function(term) {
+        var terms = _.sortBy(_.invokeMap(this.terms, "normalize"), function(term) {
             return term.print();
         });
 
@@ -526,7 +526,7 @@ _.extend(Seq.prototype, {
         var same = grouped[true] || [];
         var others = grouped[false] || [];
 
-        var flattened = others.concat(_.flatten(_.pluck(same, "terms"), /* shallow: */ true));
+        var flattened = others.concat(_.flatten(_.map(same, "terms"), /* shallow: */ true));
         return new type.func(flattened);
     },
 
@@ -537,8 +537,8 @@ _.extend(Seq.prototype, {
     reduce: abstract,
 
     isPositive: function() {
-        var terms = _.invoke(this.terms, "collect");
-        return _.all(_.invoke(terms, "isPositive"));
+        var terms = _.invokeMap(this.terms, "collect");
+        return _.every(_.invokeMap(terms, "isPositive"));
     },
 
     // return a new Seq with a given term replaced by a different term
@@ -574,7 +574,7 @@ _.extend(Seq.prototype, {
 
     getDenominator: function() {
         // TODO(alex): find and return LCM
-        return new Mul(_.invoke(this.terms, "getDenominator")).flatten();
+        return new Mul(_.invokeMap(this.terms, "getDenominator")).flatten();
     }
 });
 
@@ -603,7 +603,7 @@ _.extend(Add.prototype, {
     },
 
     print: function() {
-        return _.invoke(this.terms, "print").join("+");
+        return _.invokeMap(this.terms, "print").join("+");
     },
 
     tex: function() {
@@ -621,7 +621,7 @@ _.extend(Add.prototype, {
     },
 
     collect: function(options) {
-        var terms = _.invoke(this.terms, "collect", options);
+        var terms = _.invokeMap(this.terms, "collect", options);
 
         // [Expr expr, Num coefficient]
         var pairs = [];
@@ -662,7 +662,7 @@ _.extend(Add.prototype, {
             keepNegative: false
         }, options);
 
-        var terms = _.invoke(this.terms, "collect");
+        var terms = _.invokeMap(this.terms, "collect");
         var factors;
 
         if (terms[0] instanceof Mul) {
@@ -671,7 +671,7 @@ _.extend(Add.prototype, {
             factors = [terms[0]];
         }
 
-        _.each(_.rest(this.terms), function(term) {
+        _.each(_.drop(this.terms), function(term) {
             factors = _.map(factors, function(factor) {
                 return term.findGCD(factor);
             });
@@ -700,12 +700,12 @@ _.extend(Add.prototype, {
     needsExplicitMul: function() { return false; },
 
     isNegative: function() {
-        var terms = _.invoke(this.terms, "collect");
-        return _.all(_.invoke(terms, "isNegative"));
+        var terms = _.invokeMap(this.terms, "collect");
+        return _.every(_.invokeMap(terms, "isNegative"));
     },
 
     negate: function() {
-        return new Add(_.invoke(this.terms, "negate"));
+        return new Add(_.invokeMap(this.terms, "negate"));
     }
 });
 
@@ -799,7 +799,7 @@ _.extend(Mul.prototype, {
                 inverses.push(new Pow(new Int(term.d), Num.Div));
                 var number = new Int(term.n);
                 number.hints = term.hints;
-                return _.any(term.hints) ? number : null;
+                return _.some(term.hints) ? number : null;
             } else {
                 return term;
             }
@@ -845,7 +845,7 @@ _.extend(Mul.prototype, {
         if (!inverses.length) {
             return negatives + numerator;
         } else {
-            var denominator = new Mul(_.invoke(inverses, "asDivide")).flatten().tex();
+            var denominator = new Mul(_.invokeMap(inverses, "asDivide")).flatten().tex();
             return negatives + "\\frac{" + numerator + "}{" + denominator + "}";
         }
     },
@@ -874,8 +874,8 @@ _.extend(Mul.prototype, {
 
         var mul = this.recurse("expand").flatten();
 
-        var hasAdd = _.any(mul.terms, isAdd);
-        var hasInverseAdd = _.any(mul.terms, isInverseAdd);
+        var hasAdd = _.some(mul.terms, isAdd);
+        var hasInverseAdd = _.some(mul.terms, isInverseAdd);
 
         if (!(hasAdd || hasInverseAdd)) {
             return mul;
@@ -910,7 +910,7 @@ _.extend(Mul.prototype, {
         }
 
         if (hasInverseAdd) {
-            var denominator = new Mul(_.invoke(inverses, "getDenominator")).flatten();
+            var denominator = new Mul(_.invokeMap(inverses, "getDenominator")).flatten();
             inverses = [new Pow(denominator.expand(), Num.Div)];
         }
 
@@ -1083,7 +1083,7 @@ _.extend(Mul.prototype, {
     },
 
     isSubtract: function() {
-        return _.any(this.terms, function(term) {
+        return _.some(this.terms, function(term) {
             return term instanceof Num && term.hints.subtract;
         });
     },
@@ -1093,7 +1093,7 @@ _.extend(Mul.prototype, {
     factorIn: function(hint) {
         var partitioned = this.partition();
         var numbers = partitioned[0].terms;
-        var fold = numbers.length && _.all(numbers, function(num) {
+        var fold = numbers.length && _.every(numbers, function(num) {
             return num.n > 0;
         });
 
@@ -1136,7 +1136,7 @@ _.extend(Mul.prototype, {
     },
 
     findGCD: function(factor) {
-        return new Mul(_.invoke(this.terms, "findGCD", factor)).flatten();
+        return new Mul(_.invokeMap(this.terms, "findGCD", factor)).flatten();
     },
 
     asMul: function() {
@@ -1147,13 +1147,13 @@ _.extend(Mul.prototype, {
         if (this.isPositive()) {
             return this;
         } else {
-            var terms = _.invoke(this.collect().terms, "asPositiveFactor");
+            var terms = _.invokeMap(this.collect().terms, "asPositiveFactor");
             return new Mul(terms).flatten();
         }
     },
 
     isNegative: function() {
-        return _.any(_.invoke(this.collect().terms, "isNegative"));
+        return _.some(_.invokeMap(this.collect().terms, "isNegative"));
     },
 
     fold: function() {
@@ -1162,7 +1162,7 @@ _.extend(Mul.prototype, {
 
     negate: function() {
         var isNum = function(expr) { return expr instanceof Num; };
-        if (_.any(this.terms, isNum)) {
+        if (_.some(this.terms, isNum)) {
             var num = _.find(this.terms, isNum);
             return this.replace(num, num.negate());
         } else {
@@ -1214,7 +1214,7 @@ _.extend(Mul, {
         // dividing by a Mul is the same as repeated division by its terms
         if (right instanceof Mul) {
             var first = Mul.handleDivide(left, right.terms[0]);
-            var rest = new Mul(_.rest(right.terms)).flatten();
+            var rest = new Mul(_.drop(right.terms)).flatten();
             return Mul.handleDivide(first, rest);
         }
 
@@ -1223,7 +1223,7 @@ _.extend(Mul, {
 
         // for simplification purposes, fold Ints into Rationals if possible
         // e.g. 3x / 4 -> 3/4 * x (will still render as 3x/4)
-        if (isInt(right) && left instanceof Mul && _.any(left.terms, isInt)) {
+        if (isInt(right) && left instanceof Mul && _.some(left.terms, isInt)) {
 
             // search from the right
             var reversed = left.terms.slice().reverse();
@@ -1609,7 +1609,7 @@ _.extend(Pow.prototype, {
             return pow.exp.power;
 
         } else if (pow.exp instanceof Mul &&
-            _.any(pow.exp.terms, isSimilarLog)) {
+            _.some(pow.exp.terms, isSimilarLog)) {
 
             // e.g. b^(2*y*log_b(x)) -> x^(2*y)
             var log = _.find(pow.exp.terms, isSimilarLog);
@@ -1655,7 +1655,7 @@ _.extend(Pow.prototype, {
     // checks whether this Pow represents user-entered division
     isDivide: function() {
         var isDiv = function(arg) { return arg instanceof Num && arg.hints.divide; };
-        return isDiv(this.exp) || (this.exp instanceof Mul && _.any(this.exp.terms, isDiv));
+        return isDiv(this.exp) || (this.exp instanceof Mul && _.some(this.exp.terms, isDiv));
     },
 
     // assuming this Pow represents user-entered division, returns the denominator
@@ -2061,7 +2061,7 @@ _.extend(Trig.prototype, {
     },
 
     isEven: function() {
-        return _.contains(["cos", "sec"], this.type);
+        return _.includes(["cos", "sec"], this.type);
     },
 
     isInverse: function() {
@@ -2069,7 +2069,7 @@ _.extend(Trig.prototype, {
     },
 
     isBasic: function() {
-        return _.contains(["sin", "cos"], this.type);
+        return _.includes(["sin", "cos"], this.type);
     },
 
     eval: function(vars, options) {
@@ -2302,7 +2302,7 @@ _.extend(Eq.prototype, {
     normalize: function() {
         var eq = this.recurse("normalize");
 
-        if (_.contains([">", ">="], eq.type)) {
+        if (_.includes([">", ">="], eq.type)) {
             // inequalities should have the smaller side on the left
             return new Eq(eq.right, eq.type.replace(">", "<"), eq.left);
         } else {
@@ -2341,7 +2341,7 @@ _.extend(Eq.prototype, {
         // float precision. We have to be very careful to not introduce any
         // irrational floats before asExpr() returns, because by definition
         // they do not have exact denominators...
-        terms = _.invoke(terms, "collect", {preciseFloats: true});
+        terms = _.invokeMap(terms, "collect", {preciseFloats: true});
 
         // ...and we multiply through by every denominator.
         for (var i = 0; i < terms.length; i++) {
@@ -2429,7 +2429,7 @@ _.extend(Eq.prototype, {
     },
 
     isEquality: function() {
-        return _.contains(["=", "<>"], this.type);
+        return _.includes(["=", "<>"], this.type);
     },
 
     compare: function(other) {
@@ -2495,7 +2495,7 @@ _.extend(Eq.prototype, {
         }
 
         var hasVar = function(term) {
-            return term.has(Var) && _.contains(term.getVars(), variable.symbol);
+            return term.has(Var) && _.includes(term.getVars(), variable.symbol);
         };
 
         var a, b;
@@ -3087,9 +3087,9 @@ parser.yy = {
 
     constants: ["e"],
     symbolLexer: function(symbol) {
-        if (_.contains(parser.yy.constants, symbol)) {
+        if (_.includes(parser.yy.constants, symbol)) {
             return "CONST";
-        } else if (_.contains(parser.yy.functions, symbol)) {
+        } else if (_.includes(parser.yy.functions, symbol)) {
             return "FUNC";
         } else {
             return "VAR";
